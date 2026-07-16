@@ -38,7 +38,8 @@ app.get('/login', (_req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign In — Analytics</title>
+  <title>Sign In — BrowsLytics</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232563eb'/%3E%3Cstop offset='100%25' stop-color='%23933df5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-size='18' font-weight='800' font-family='Inter,sans-serif'%3EB%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,7 +84,7 @@ app.get('/login', (_req, res) => {
 </head>
 <body>
   <div class="login-card">
-    <div class="logo">T</div>
+    <div class="logo">B</div>
     <h1 id="formTitle">Sign In</h1>
     <div class="sub" id="formSub">Access your analytics dashboard</div>
     <div id="errorMsg" class="error"></div>
@@ -464,8 +465,8 @@ app.get('/', function (_req, res) {
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="logo-area">
-        <div class="logo">T</div>
-        <div class="brand">Analytics <span>App</span></div>
+        <div class="logo">B</div>
+        <div class="brand">BrowsLytics <span>App</span></div>
       </div>
       <div class="nav-items">
         <div class="nav-item active"><span class="icon">📊</span><span>Dashboard</span></div>
@@ -483,8 +484,8 @@ app.get('/', function (_req, res) {
     <!-- Top Bar -->
     <div class="topbar">
       <div class="topbar-left">
-        <div class="topbar-logo">T</div>
-        <div class="topbar-title">Analytics <span>Dashboard</span></div>
+        <div class="topbar-logo">B</div>
+        <div class="topbar-title">BrowsLytics <span>Dashboard</span></div>
       </div>
       <div class="topbar-right">
         <span class="last-updated" id="lastUpdated">Loading...</span>
@@ -829,7 +830,8 @@ app.get('/reports', function (_req, res) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reports — Analytics</title>
+  <title>Reports — BrowsLytics</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232563eb'/%3E%3Cstop offset='100%25' stop-color='%23933df5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-size='18' font-weight='800' font-family='Inter,sans-serif'%3EB%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -893,7 +895,7 @@ app.get('/reports', function (_req, res) {
 </head>
 <body>
   <div class="sidebar">
-    <div class="logo-area"><div class="logo">T</div><div class="brand">Analytics <span>App</span></div></div>
+    <div class="logo-area"><div class="logo">B</div><div class="brand">BrowsLytics <span>App</span></div></div>
     <div class="nav-items">
       <div class="nav-item" onclick="window.location.href='/'"><span class="icon">📊</span><span>Dashboard</span></div>
       <div class="nav-item active"><span class="icon">📁</span><span>Reports</span></div>
@@ -1051,14 +1053,14 @@ app.get('/reports', function (_req, res) {
         html += '</tbody></table>';
       }
 
-      html += '<div class="footer">Time Analytics Tracker — Auto-generated report</div>';
+      html += '<div class="footer">BrowsLytics — Auto-generated report</div>';
       html += '</body></html>';
 
       var blob = new Blob([html], { type: 'text/html' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'analytics-report-' + now.toISOString().slice(0, 10) + '.html';
+      a.download = 'browslytics-report-' + now.toISOString().slice(0, 10) + '.html';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1202,7 +1204,8 @@ app.get('/settings', function (_req, res) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Settings — Analytics</title>
+  <title>Settings — BrowsLytics</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232563eb'/%3E%3Cstop offset='100%25' stop-color='%23933df5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-size='18' font-weight='800' font-family='Inter,sans-serif'%3EB%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1278,7 +1281,7 @@ app.get('/settings', function (_req, res) {
 </head>
 <body>
   <div class="sidebar">
-    <div class="logo-area"><div class="logo">T</div><div class="brand">Analytics <span>App</span></div></div>
+    <div class="logo-area"><div class="logo">B</div><div class="brand">BrowsLytics <span>App</span></div></div>
     <div class="nav-items">
       <div class="nav-item" onclick="window.location.href='/'" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></div>
       <div class="nav-item" onclick="window.location.href='/'"><span class="icon">📁</span><span>Reports</span></div>
@@ -1451,7 +1454,7 @@ app.use((err, _req, res, _next) => {
 app.listen(config.port, () => {
   // Initialise DB on startup
   getDb();
-  console.log(`✓ Analytics tenant running on http://localhost:${config.port}`);
+  console.log(`✓ BrowsLytics tenant running on http://localhost:${config.port}`);
   console.log(`  POST /api/analytics   — ingest visit data`);
   console.log(`  GET  /api/reports/*   — query analytics`);
   console.log(`  GET  /api/health      — health check`);
