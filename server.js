@@ -15,9 +15,11 @@ app.use(express.json({ limit: '1mb' }));
 // ── Routes ─────────────────────────────────────────────────
 const analyticsRoutes = require('./routes/analytics');
 const reportsRoutes  = require('./routes/reports');
+const authRoutes     = require('./routes/auth');
 
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports',   reportsRoutes);
+app.use('/api/auth',      authRoutes);
 
 // ── Health check ───────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -28,8 +30,154 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// ── Login page ─────────────────────────────────────────────
+app.get('/login', (_req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0b0e14; color: #e1e7ef;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .login-card {
+      background: #111820; border: 1px solid #1e2430; border-radius: 14px;
+      padding: 40px 36px; width: 100%; max-width: 400px;
+    }
+    .login-card .logo {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: #fff; font-weight: 700; margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
+    .login-card h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+    .login-card .sub { color: #4a5568; font-size: 0.85rem; margin-bottom: 24px; }
+    .login-card label { display: block; font-size: 0.78rem; color: #8b9bb5; margin-bottom: 4px; font-weight: 500; }
+    .login-card input {
+      width: 100%; background: #0b0e14; border: 1px solid #1e2430;
+      border-radius: 8px; padding: 10px 12px; color: #e1e7ef;
+      font-size: 0.9rem; font-family: inherit; outline: none; margin-bottom: 14px;
+    }
+    .login-card input:focus { border-color: #2563eb; }
+    .login-card button {
+      width: 100%; background: #2563eb; border: none; border-radius: 8px;
+      padding: 11px; color: #fff; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; margin-top: 4px;
+    }
+    .login-card button:hover { background: #1d4ed8; }
+    .login-card button:disabled { opacity: 0.5; cursor: default; }
+    .login-card .error { color: #f87171; font-size: 0.82rem; margin-top: 10px; display: none; }
+    .login-card .toggle { text-align: center; margin-top: 16px; font-size: 0.82rem; color: #4a5568; }
+    .login-card .toggle a { color: #60a5fa; cursor: pointer; text-decoration: none; }
+    .login-card .toggle a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">T</div>
+    <h1 id="formTitle">Sign In</h1>
+    <div class="sub" id="formSub">Access your analytics dashboard</div>
+    <div id="errorMsg" class="error"></div>
+    <input type="email" id="emailInput" placeholder="Email" autocomplete="email" />
+    <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
+    <input type="password" id="confirmInput" placeholder="Confirm password" style="display:none;" autocomplete="new-password" />
+    <button id="submitBtn" onclick="submitForm()">Sign In</button>
+    <div class="toggle">
+      <span id="toggleText">Don't have an account? </span>
+      <a id="toggleLink" onclick="toggleMode()">Sign Up</a>
+    </div>
+  </div>
+  <script>
+    var isLogin = true;
+    function toggleMode() {
+      isLogin = !isLogin;
+      document.getElementById('formTitle').textContent = isLogin ? 'Sign In' : 'Create Account';
+      document.getElementById('formSub').textContent = isLogin ? 'Access your analytics dashboard' : 'Register to view analytics';
+      document.getElementById('submitBtn').textContent = isLogin ? 'Sign In' : 'Create Account';
+      document.getElementById('confirmInput').style.display = isLogin ? 'none' : 'block';
+      document.getElementById('toggleText').textContent = isLogin ? "Don't have an account? " : 'Already have an account? ';
+      document.getElementById('toggleLink').textContent = isLogin ? 'Sign Up' : 'Sign In';
+      document.getElementById('errorMsg').style.display = 'none';
+    }
+    function submitForm() {
+      var btn = document.getElementById('submitBtn');
+      var err = document.getElementById('errorMsg');
+      btn.disabled = true; btn.textContent = 'Loading...';
+      err.style.display = 'none';
+
+      var email = document.getElementById('emailInput').value.trim();
+      var password = document.getElementById('passwordInput').value;
+      var endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+      var body = { email: email, password: password };
+
+      if (!isLogin) {
+        var confirm = document.getElementById('confirmInput').value;
+        if (password !== confirm) {
+          err.textContent = 'Passwords do not match'; err.style.display = 'block';
+          btn.disabled = false; btn.textContent = isLogin ? 'Sign In' : 'Create Account';
+          return;
+        }
+      }
+
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          window.location.href = '/';
+        } else {
+          err.textContent = data.error || 'Something went wrong';
+          err.style.display = 'block';
+        }
+      })
+      .catch(function () {
+        err.textContent = 'Network error';
+        err.style.display = 'block';
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = isLogin ? 'Sign In' : 'Create Account';
+      });
+    }
+    // Check if already logged in
+    if (localStorage.getItem('token')) { window.location.href = '/'; }
+  </script>
+</body>
+</html>
+  `);
+});
+
 // ── Dashboard (served at /) ────────────────────────────────
-app.get('/', (_req, res) => {
+app.get('/', function (req, res) {
+  // Check for token in query param (for non-AJAX page loads)
+  var token = req.query.token || req.headers.authorization;
+  if (!token) {
+    return res.redirect('/login');
+  }
+  // Strip "Bearer " prefix if present
+  if (token.startsWith('Bearer ')) token = token.slice(7);
+
+  try {
+    var jwt = require('jsonwebtoken');
+    var { JWT_SECRET } = require('./middleware/jwt');
+    jwt.verify(token, JWT_SECRET);
+  } catch (e) {
+    return res.redirect('/login');
+  }
   res.send(`
 <!DOCTYPE html>
 <html lang="en">
@@ -366,6 +514,11 @@ app.get('/', (_req, res) => {
   </div>
 
   <script>
+    // Redirect to login if no token
+    if (!localStorage.getItem('token')) {
+      window.location.href = '/login';
+    }
+
     var currentDays = 1;
     var selectedDeviceId = null;
     var topSitesChartInstance = null;
@@ -388,8 +541,11 @@ app.get('/', (_req, res) => {
 
     function loadDashboard() {
       document.getElementById('lastUpdated').textContent = 'Refreshing...';
-      var apiKey = 'dev-secret-change-in-production';
-      var headers = { 'Content-Type': 'application/json', 'X-Api-Key': apiKey };
+      var token = localStorage.getItem('token') || '';
+      var headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      };
       var devParam = selectedDeviceId ? '&deviceId=' + selectedDeviceId : '';
 
       Promise.all([

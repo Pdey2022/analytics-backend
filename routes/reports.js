@@ -3,12 +3,12 @@
 // ============================================================
 const { Router } = require('express');
 const { getDb } = require('../db/connection');
-const { requireApiKey } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/jwt');
 const { categorizeDomain, CATEGORY_COLORS } = require('./categories');
 
 const router = Router();
 
-router.use(requireApiKey);
+router.use(requireAuth);
 
 /**
  * GET /api/reports/top-sites?deviceId=xxx&days=7&limit=10
