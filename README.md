@@ -4,6 +4,10 @@ A browser extension + cloud backend for tracking time spent on websites. Include
 
 <img width="2511" height="1857" alt="image" src="https://github.com/user-attachments/assets/6418411e-e933-490e-bd22-a4924b1ccdff" />
 
+Per Device Report function to track how much time they are spending on a site 
+<img width="2308" height="1696" alt="image" src="https://github.com/user-attachments/assets/0adcd5f1-3ad5-4b78-8d8b-60a74267648c" />
+
+
 
 ## Features
 
