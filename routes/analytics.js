@@ -57,6 +57,10 @@ router.post('/', (req, res) => {
           is_active = 1
       `).run(deviceId, config.apiKey);
     }
+    // Load blocked domains into a Set for fast lookup
+    var blockedRows = db.prepare('SELECT domain FROM blocked_domains').all();
+    var blockedSet = new Set(blockedRows.map(function (r) { return r.domain; }));
+
     // Prepare statements for batch insert
     const insertVisit = db.prepare(`
       INSERT INTO site_visits (device_id, domain, page_title, time_spent_seconds, visited_at)
@@ -79,6 +83,13 @@ router.post('/', (req, res) => {
           continue;
         }
         if (v.timeSpentSeconds < config.minTimeSpentSeconds) {
+          results.skipped++;
+          continue;
+        }
+
+        // Check blocklist
+        var domainKey = v.domain.replace(/^https?:\/\//, '').split('/')[0].split('?')[0].toLowerCase();
+        if (blockedSet.has(domainKey)) {
           results.skipped++;
           continue;
         }

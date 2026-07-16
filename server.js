@@ -16,10 +16,12 @@ app.use(express.json({ limit: '1mb' }));
 const analyticsRoutes = require('./routes/analytics');
 const reportsRoutes  = require('./routes/reports');
 const authRoutes     = require('./routes/auth');
+const blocklistRoutes = require('./routes/blocklist');
 
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports',   reportsRoutes);
 app.use('/api/auth',      authRoutes);
+app.use('/api/blocklist', blocklistRoutes);
 
 // ── Health check ───────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -1320,6 +1322,24 @@ app.get('/settings', function (_req, res) {
         <div class="user-count" id="userCount"></div>
       </div>
     </div>
+
+    <div class="section">
+      <h2>Blocked Sites <span style="font-weight:400;color:#4a5568;font-size:0.78rem;">(domains to exclude from tracking)</span></h2>
+      <div class="card">
+        <div class="row" style="gap:8px;flex-wrap:wrap;">
+          <span class="label" style="flex:0 0 auto;">Add domain</span>
+          <input type="text" id="blockDomainInput" placeholder="e.g. youtube.com" style="width:200px;" />
+          <button class="btn" id="blockAddBtn">Block</button>
+          <span class="msg" id="blockMsg"></span>
+        </div>
+        <div style="max-height:200px;overflow-y:auto;margin-top:8px;">
+          <table class="users-table" id="blockTable">
+            <thead><tr><th>Domain</th><th>Added</th><th style="width:50px;"></th></tr></thead>
+            <tbody id="blockBody"><tr><td colspan="3" style="text-align:center;color:#4a5568;padding:14px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
   <script>
     var token = localStorage.getItem('token');
@@ -1330,7 +1350,10 @@ app.get('/settings', function (_req, res) {
       opts.headers = opts.headers || {};
       opts.headers['Content-Type'] = 'application/json';
       opts.headers['Authorization'] = 'Bearer ' + token;
-      return fetch('/api/auth' + endpoint, opts).then(function (r) { return r.json(); });
+
+      // Support both /api/auth/* and /api/blocklist
+      var prefix = endpoint.indexOf('/blocklist') === 0 ? '/api' : '/api/auth';
+      return fetch(prefix + endpoint, opts).then(function (r) { return r.json(); });
     }
 
     // Current user info
@@ -1436,6 +1459,49 @@ app.get('/settings', function (_req, res) {
     function closeInlineForms() {
       document.querySelectorAll('.inline-edit.open').forEach(function (el) { el.remove(); });
     }
+
+    // ── Blocklist ─────────────────────────────────────────
+    function loadBlocklist() {
+      api('/blocklist').then(function (d) {
+        var tbody = document.getElementById('blockBody');
+        if (!d.domains || d.domains.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#4a5568;padding:14px;">No blocked domains</td></tr>';
+          return;
+        }
+        var html = '';
+        d.domains.forEach(function (b) {
+          html += '<tr><td><code style="color:#f87171;">' + b.domain + '</code></td><td style="color:#6b7a8f;font-size:0.78rem;">' + (b.created_at || '') + '</td><td><button class="action-btn" onclick="unblockDomain(' + b.id + ')" title="Unblock">✕</button></td></tr>';
+        });
+        tbody.innerHTML = html;
+      }).catch(function () {
+        document.getElementById('blockBody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:#f87171;padding:14px;">Failed to load</td></tr>';
+      });
+    }
+
+    function unblockDomain(id) {
+      api('/blocklist/' + id, { method: 'DELETE' }).then(function (d) {
+        if (d.message) loadBlocklist();
+      });
+    }
+
+    document.getElementById('blockAddBtn').addEventListener('click', function () {
+      var domain = document.getElementById('blockDomainInput').value.trim();
+      if (!domain) return;
+      var btn = this; btn.disabled = true;
+      api('/blocklist', { method: 'POST', body: JSON.stringify({ domain: domain }) }).then(function (d) {
+        var msg = document.getElementById('blockMsg');
+        if (d.message) {
+          msg.className = 'msg success'; msg.textContent = '✓ ' + d.domain + ' blocked';
+          document.getElementById('blockDomainInput').value = '';
+          loadBlocklist();
+        } else {
+          msg.className = 'msg error'; msg.textContent = d.error || 'Error';
+        }
+        btn.disabled = false;
+      });
+    });
+
+    loadBlocklist();
 
     // (Profile name and password editing moved to inline Actions in Users table below)
   </script>
