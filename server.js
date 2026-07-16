@@ -918,8 +918,9 @@ app.get('/reports', function (_req, res) {
         <label>To</label>
         <input type="date" id="toDate" />
       </div>
-      <div class="filter-group" style="justify-content:flex-end;">
+      <div class="filter-group" style="justify-content:flex-end;flex-direction:row;gap:8px;">
         <button class="gen-btn" id="generateBtn">⟳ Generate Report</button>
+        <button class="gen-btn" id="downloadBtn" style="background:#1a2e4a;" title="Download report as HTML">📥 Download</button>
       </div>
     </div>
 
@@ -954,6 +955,8 @@ app.get('/reports', function (_req, res) {
     if (!token) { window.location.href = '/login'; }
 
     var charts = {};
+    var lastSummary = null, lastTopSites = null, lastTimeline = null, lastCategories = null;
+    var lastDeviceId = '', lastFrom = '', lastTo = '';
 
     function api(path) {
       return fetch(path, { headers: { 'Authorization': 'Bearer ' + token } }).then(function (r) { return r.json(); });
@@ -967,10 +970,101 @@ app.get('/reports', function (_req, res) {
 
     function destroyChart(key) { if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
 
+    function fmtTimeFull(s) {
+      if (!s || s === 0) return '0 seconds';
+      var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      var parts = [];
+      if (h) parts.push(h + 'h');
+      if (m) parts.push(m + 'm');
+      if (sec) parts.push(sec + 's');
+      return parts.join(' ') || '0s';
+    }
+
+    function downloadReport() {
+      if (!lastSummary && !lastTopSites) { alert('No report data to download. Click Generate Report first.'); return; }
+
+      var deviceLabel = document.getElementById('deviceSelect').selectedOptions[0].textContent;
+      var fromLabel = document.getElementById('fromDate').value || 'N/A';
+      var toLabel = document.getElementById('toDate').value || 'N/A';
+      var now = new Date();
+      var dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Analytics Report</title>';
+      html += '<style>body{font-family:system-ui,sans-serif;max-width:800px;margin:30px auto;padding:0 20px;color:#1a1a2e;background:#fff;}';
+      html += 'h1{color:#1a1a2e;border-bottom:2px solid #2563eb;padding-bottom:8px;}';
+      html += '.meta{color:#6b7280;font-size:0.9rem;margin-bottom:20px;}';
+      html += 'h2{color:#2563eb;margin-top:24px;}';
+      html += 'table{width:100%;border-collapse:collapse;margin:10px 0;}';
+      html += 'th{background:#f3f4f6;text-align:left;padding:8px 10px;font-size:0.85rem;border-bottom:2px solid #d1d5db;}';
+      html += 'td{padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:0.9rem;}';
+      html += 'tr:hover td{background:#f9fafb;}';
+      html += '.num{text-align:right;}';
+      html += '.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;}';
+      html += '.stat-card{background:#f3f4f6;border-radius:8px;padding:14px;text-align:center;}';
+      html += '.stat-card .val{font-size:1.3rem;font-weight:700;color:#1a1a2e;}';
+      html += '.stat-card .lbl{font-size:0.75rem;color:#6b7280;margin-top:4px;}';
+      html += '.footer{color:#9ca3af;font-size:0.8rem;margin-top:30px;border-top:1px solid #e5e7eb;padding-top:12px;text-align:center;}';
+      html += '</style></head><body>';
+
+      html += '<h1>📊 Analytics Report</h1>';
+      html += '<div class="meta">Generated: ' + dateStr + ' &nbsp;|&nbsp; Device: ' + deviceLabel + ' &nbsp;|&nbsp; Period: ' + fromLabel + ' → ' + toLabel + '</div>';
+
+      // Summary
+      if (lastSummary) {
+        html += '<h2>Summary</h2><div class="stat-grid">';
+        html += '<div class="stat-card"><div class="val">' + fmtTime(lastSummary.total_seconds) + '</div><div class="lbl">Time Online</div></div>';
+        html += '<div class="stat-card"><div class="val">' + (lastSummary.total_visits || 0) + '</div><div class="lbl">Visits</div></div>';
+        html += '<div class="stat-card"><div class="val">' + (lastSummary.unique_domains || 0) + '</div><div class="lbl">Sites</div></div>';
+        html += '<div class="stat-card"><div class="val">' + (lastSummary.active_days || 0) + '</div><div class="lbl">Active Days</div></div>';
+        html += '</div>';
+      }
+
+      // Top Sites
+      if (lastTopSites && lastTopSites.length > 0) {
+        html += '<h2>Top Sites</h2><table><thead><tr><th>#</th><th>Domain</th><th class="num">Visits</th><th class="num">Time</th><th class="num">Avg/Visit</th></tr></thead><tbody>';
+        lastTopSites.forEach(function (r, i) {
+          html += '<tr><td>' + (i+1) + '</td><td>' + r.domain + '</td><td class="num">' + r.visit_count + '</td><td class="num">' + fmtTimeFull(r.total_seconds) + '</td><td class="num">' + (r.avg_seconds_per_visit || 0) + 's</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      // Timeline
+      if (lastTimeline && lastTimeline.length > 0) {
+        html += '<h2>Daily Activity</h2><table><thead><tr><th>Date</th><th class="num">Visits</th><th class="num">Time</th></tr></thead><tbody>';
+        lastTimeline.forEach(function (r) {
+          html += '<tr><td>' + r.visit_date + '</td><td class="num">' + r.visit_count + '</td><td class="num">' + fmtTimeFull(r.total_seconds) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      // Categories
+      if (lastCategories && lastCategories.length > 0) {
+        html += '<h2>Site Categories</h2><table><thead><tr><th>Category</th><th class="num">Time</th><th class="num">Visits</th></tr></thead><tbody>';
+        lastCategories.forEach(function (c) {
+          html += '<tr><td>' + c.category + '</td><td class="num">' + fmtTimeFull(c.total_seconds) + '</td><td class="num">' + c.total_visits + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      html += '<div class="footer">Time Analytics Tracker — Auto-generated report</div>';
+      html += '</body></html>';
+
+      var blob = new Blob([html], { type: 'text/html' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'analytics-report-' + now.toISOString().slice(0, 10) + '.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     function loadReport() {
       var deviceId = document.getElementById('deviceSelect').value;
       var from = document.getElementById('fromDate').value;
       var to = document.getElementById('toDate').value;
+      lastDeviceId = deviceId; lastFrom = from; lastTo = to;
       var params = '';
       if (deviceId) params += '&deviceId=' + deviceId;
       if (from) params += '&from=' + from;
@@ -980,6 +1074,7 @@ app.get('/reports', function (_req, res) {
       // Summary
       api(base + '/summary?' + params.substring(1)).then(function (d) {
         if (d.stats) {
+          lastSummary = d.stats;
           document.querySelector('#statsGrid .stat-card:nth-child(1) .stat-value').textContent = fmtTime(d.stats.total_seconds);
           document.querySelector('#statsGrid .stat-card:nth-child(2) .stat-value').textContent = d.stats.total_visits || 0;
           document.querySelector('#statsGrid .stat-card:nth-child(3) .stat-value').textContent = d.stats.unique_domains || 0;
@@ -992,9 +1087,11 @@ app.get('/reports', function (_req, res) {
         destroyChart('topSites');
         var tbody = document.getElementById('topSitesBody');
         if (!d.rows || d.rows.length === 0) {
+          lastTopSites = null;
           tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No data</td></tr>';
           return;
         }
+        lastTopSites = d.rows;
         var labels = [], data = [], colors = [];
         var html = '';
         d.rows.forEach(function (r, i) {
@@ -1016,7 +1113,8 @@ app.get('/reports', function (_req, res) {
       // Timeline
       api(base + '/timeline?' + params.substring(1)).then(function (d) {
         destroyChart('timeline');
-        if (!d.rows || d.rows.length === 0) return;
+        if (!d.rows || d.rows.length === 0) { lastTimeline = null; return; }
+        lastTimeline = d.rows;
         var labels = [], data = [];
         d.rows.forEach(function (r) { labels.push(r.visit_date); data.push(Math.round(r.total_seconds / 60)); });
         var ctx = document.getElementById('timelineChart').getContext('2d');
@@ -1032,7 +1130,8 @@ app.get('/reports', function (_req, res) {
       // Categories
       api(base + '/categories?' + params.substring(1)).then(function (d) {
         destroyChart('categories');
-        if (!d.categories || d.categories.length === 0) return;
+        if (!d.categories || d.categories.length === 0) { lastCategories = null; return; }
+        lastCategories = d.categories;
         var labels = [], data = [], colors = [];
         d.categories.forEach(function (c) { labels.push(c.category); data.push(Math.round(c.total_seconds / 60)); colors.push(c.color || '#4a5568'); });
         var ctx = document.getElementById('categoriesChart').getContext('2d');
@@ -1059,6 +1158,7 @@ app.get('/reports', function (_req, res) {
     })();
 
     document.getElementById('generateBtn').addEventListener('click', loadReport);
+    document.getElementById('downloadBtn').addEventListener('click', downloadReport);
 
     // Load user info
     api('/api/auth/me').then(function (d) {
