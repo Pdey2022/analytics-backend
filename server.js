@@ -1498,6 +1498,10 @@ app.get('/settings', function (_req, res) {
           msg.className = 'msg error'; msg.textContent = d.error || 'Error';
         }
         btn.disabled = false;
+      }).catch(function (err) {
+        document.getElementById('blockMsg').className = 'msg error';
+        document.getElementById('blockMsg').textContent = 'Request failed: ' + (err.message || err);
+        btn.disabled = false;
       });
     });
 

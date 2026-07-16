@@ -42,13 +42,17 @@ router.post('/', (req, res) => {
     domain = domain.replace(/^https?:\/\//, '').split('/')[0].split('?')[0];
 
     const db = getDb();
-    db.prepare('INSERT OR IGNORE INTO blocked_domains (domain, added_by) VALUES (?, ?)')
+    var result = db.prepare('INSERT OR IGNORE INTO blocked_domains (domain, added_by) VALUES (?, ?)')
       .run(domain, req.user.id);
+
+    if (result.changes === 0) {
+      return res.json({ message: 'Domain already blocked', domain: domain });
+    }
 
     res.status(201).json({ message: 'Domain blocked', domain: domain });
   } catch (err) {
-    console.error('Error adding blocked domain:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error adding blocked domain:', err.message, err.stack);
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
