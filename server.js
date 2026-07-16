@@ -188,7 +188,71 @@ app.get('/', function (_req, res) {
     ::-webkit-scrollbar-thumb { background: #2a2f3a; border-radius: 3px; }
 
     /* ── Container ─────────────────────── */
-    .app { max-width: 1200px; margin: 0 auto; padding: 0 24px 48px; }
+    /* ── Layout ────────────────────────── */
+    .layout { display: flex; min-height: 100vh; }
+    .app { flex: 1; max-width: 1200px; padding: 0 24px 48px; }
+
+    /* ── Sidebar ──────────────────────── */
+    .sidebar {
+      width: 220px; min-height: 100vh;
+      background: #0f131a; border-right: 1px solid #1e2430;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar .logo-area {
+      padding: 20px 18px 16px; border-bottom: 1px solid #1e2430;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar .logo-area .logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: #fff; font-weight: 700;
+      box-shadow: 0 3px 10px rgba(37,99,235,0.3);
+    }
+    .sidebar .logo-area .brand { font-size: 0.95rem; font-weight: 700; color: #f0f3f8; }
+    .sidebar .logo-area .brand span { color: #4a5568; font-weight: 400; }
+
+    .sidebar .nav-items { flex: 1; padding: 12px 10px; }
+    .sidebar .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 8px; font-size: 0.82rem;
+      color: #6b7a8f; cursor: pointer; transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+    .sidebar .nav-item:hover { background: #161b22; color: #c9d1d9; }
+    .sidebar .nav-item.active { background: #1e293b; color: #f0f3f8; }
+    .sidebar .nav-item .icon { font-size: 1rem; width: 22px; text-align: center; }
+
+    .sidebar .user-area {
+      padding: 14px 14px 18px; border-top: 1px solid #1e2430;
+    }
+    .sidebar .user-area .user-name {
+      font-size: 0.82rem; font-weight: 600; color: #c9d1d9;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sidebar .user-area .user-email {
+      font-size: 0.72rem; color: #4a5568;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 10px;
+    }
+    .sidebar .user-area .logout-btn {
+      width: 100%; background: none; border: 1px solid #1e2430;
+      border-radius: 6px; padding: 7px; color: #6b7a8f;
+      font-size: 0.78rem; cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .sidebar .user-area .logout-btn:hover {
+      border-color: #f43f5e; color: #f43f5e;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 56px; }
+      .sidebar .logo-area .brand,
+      .sidebar .nav-item span,
+      .sidebar .user-area .user-name,
+      .sidebar .user-area .user-email { display: none; }
+      .sidebar .user-area { padding: 10px; }
+    }
 
     /* ── Top Nav ───────────────────────── */
     .topbar {
@@ -394,7 +458,26 @@ app.get('/', function (_req, res) {
   </style>
 </head>
 <body>
-  <div class="app">
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="logo-area">
+        <div class="logo">T</div>
+        <div class="brand">Analytics <span>App</span></div>
+      </div>
+      <div class="nav-items">
+        <div class="nav-item active"><span class="icon">📊</span><span>Dashboard</span></div>
+        <div class="nav-item"><span class="icon">📁</span><span>Reports</span></div>
+        <div class="nav-item"><span class="icon">⚙️</span><span>Settings</span></div>
+      </div>
+      <div class="user-area">
+        <div class="user-name" id="userName">Loading...</div>
+        <div class="user-email" id="userEmail"></div>
+        <button class="logout-btn" id="logoutBtn">🚪 Sign Out</button>
+      </div>
+    </div>
+
+    <div class="app">
     <!-- Top Bar -->
     <div class="topbar">
       <div class="topbar-left">
@@ -497,6 +580,7 @@ app.get('/', function (_req, res) {
       </div>
     </div>
   </div>
+  </div>
 
   <script>
     // Redirect to login if no token
@@ -546,6 +630,16 @@ app.get('/', function (_req, res) {
         var categoriesData = results[3];
         var devicesData = results[4];
         cachedDevices = devicesData.devices || [];
+
+        // Update user info in sidebar
+        var userData = localStorage.getItem('user');
+        if (userData) {
+          try {
+            var u = JSON.parse(userData);
+            document.getElementById('userName').textContent = u.displayName || u.email;
+            document.getElementById('userEmail').textContent = u.email;
+          } catch(e) {}
+        }
         var stats = summary.stats || {};
 
         var selectedDeviceName = '';
@@ -683,6 +777,13 @@ app.get('/', function (_req, res) {
         document.getElementById('lastUpdated').textContent = 'Error';
       });
     }
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', function () {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    });
 
     // Device dropdown change
     document.getElementById('deviceSelect').addEventListener('change', function () {
