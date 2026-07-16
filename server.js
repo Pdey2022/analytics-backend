@@ -1250,6 +1250,18 @@ app.get('/settings', function (_req, res) {
     .card .msg { font-size: 0.78rem; margin-top: 8px; display: none; }
     .card .msg.success { color: #22c55e; display: block; }
     .card .msg.error { color: #f87171; display: block; }
+    .action-btn { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px 5px; border-radius: 4px; transition: background 0.15s; }
+    .action-btn:hover { background: #1e293b; }
+    .inline-edit { display: none; background: #0b0e14; border: 1px solid #2563eb; border-radius: 6px; padding: 12px; margin: 6px 0; }
+    .inline-edit.open { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .inline-edit input { background: #111820; border: 1px solid #1e2430; border-radius: 4px; padding: 6px 8px; color: #e1e7ef; font-size: 0.8rem; font-family: inherit; outline: none; }
+    .inline-edit input:focus { border-color: #2563eb; }
+    .inline-edit .btn-sm { background: #2563eb; border: none; border-radius: 4px; padding: 5px 12px; color: #fff; font-size: 0.75rem; cursor: pointer; font-family: inherit; }
+    .inline-edit .btn-sm:hover { background: #1d4ed8; }
+    .inline-edit .btn-sm.cancel { background: #1e2430; }
+    .inline-edit .btn-sm.cancel:hover { background: #2a3040; }
+    .inline-edit .msg-sm { font-size: 0.72rem; color: #22c55e; }
+    .inline-edit .msg-sm.error { color: #f87171; }
     .date-range { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .date-range input[type="date"] { background: #0b0e14; border: 1px solid #1e2430; border-radius: 6px; padding: 8px 10px; color: #e1e7ef; font-size: 0.82rem; font-family: inherit; outline: none; }
     .date-range input[type="date"]:focus { border-color: #2563eb; }
@@ -1306,10 +1318,10 @@ app.get('/settings', function (_req, res) {
       <div class="card" style="padding:0;overflow:hidden;">
         <table class="users-table">
           <thead>
-            <tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Last Login</th></tr>
+            <tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Last Login</th><th style="width:80px;">Actions</th></tr>
           </thead>
           <tbody id="usersBody">
-            <tr><td colspan="6" style="text-align:center;color:#4a5568;padding:20px;">Loading...</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#4a5568;padding:20px;">Loading...</td></tr>
           </tbody>
         </table>
         <div class="user-count" id="userCount"></div>
@@ -1348,7 +1360,7 @@ app.get('/settings', function (_req, res) {
       api('/users').then(function (d) {
         var tbody = document.getElementById('usersBody');
         if (!d.users || d.users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#4a5568;padding:20px;">No users found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#4a5568;padding:20px;">No users found</td></tr>';
           return;
         }
         var html = '';
@@ -1359,6 +1371,9 @@ app.get('/settings', function (_req, res) {
           var status = '<span style="color:#4ade80;">&#9679;</span> Active';
           var joined = u.createdAt ? u.createdAt.split('T')[0] : '-';
           var lastLogin = u.lastLogin ? u.lastLogin.split('T')[0] : 'Never';
+          var actions = isMe
+            ? '<button class="action-btn" onclick="showEditName(' + u.id + ')" title="Edit name">✏️</button><button class="action-btn" onclick="showChangePw(' + u.id + ')" title="Change password">🔑</button>'
+            : '<span style="color:#2a3040;font-size:0.75rem;">-</span>';
           html += '<tr>';
           html += '<td><div style="display:flex;align-items:center;gap:10px;"><div class="user-avatar">' + initial + '</div><span>' + (u.displayName || '(no name)') + '</span></div></td>';
           html += '<td>' + u.email + '</td>';
@@ -1366,18 +1381,70 @@ app.get('/settings', function (_req, res) {
           html += '<td>' + status + '</td>';
           html += '<td>' + joined + '</td>';
           html += '<td>' + lastLogin + '</td>';
+          html += '<td style="white-space:nowrap;">' + actions + '</td>';
           html += '</tr>';
         });
         tbody.innerHTML = html;
         document.getElementById('userCount').textContent = d.users.length + ' user' + (d.users.length !== 1 ? 's' : '') + ' registered';
       }).catch(function () {
-        document.getElementById('usersBody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f87171;padding:20px;">Failed to load users</td></tr>';
+        document.getElementById('usersBody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#f87171;padding:20px;">Failed to load users</td></tr>';
       });
     }
 
     loadUsers();
 
-    // Update name
+    // Inline edit helpers
+    function showEditName(uid) {
+      closeInlineForms();
+      var row = document.querySelector('#usersBody tr td button[onclick*="' + uid + '"]');
+      if (!row) return;
+      var tr = row.closest ? row.closest('tr') : null;
+      if (!tr) return;
+      var nameCell = tr.querySelector('td:first-child span:last-child');
+      var currentName = nameCell ? nameCell.textContent : '';
+      var div = document.createElement('div');
+      div.className = 'inline-edit open';
+      div.id = 'inlineEdit_' + uid;
+      div.innerHTML = '<input type="text" id="inlineName_' + uid + '" value="' + currentName.replace(/"/g,'&quot;') + '" placeholder="New name" /><button class="btn-sm" onclick="doEditName(' + uid + ')">Save</button><button class="btn-sm cancel" onclick="closeInlineForms()">Cancel</button><span class="msg-sm" id="inlineNameMsg_' + uid + '"></span>';
+      tr.parentNode.insertBefore(div, tr.nextSibling);
+    }
+
+    function doEditName(uid) {
+      var name = document.getElementById('inlineName_' + uid).value.trim();
+      if (!name) return;
+      api('/profile', { method: 'PUT', body: JSON.stringify({ displayName: name }) }).then(function (d) {
+        var msg = document.getElementById('inlineNameMsg_' + uid);
+        if (d.message) { msg.textContent = '✓ Updated!'; msg.className = 'msg-sm'; setTimeout(function () { location.reload(); }, 800); }
+        else { msg.textContent = d.error || 'Error'; msg.className = 'msg-sm error'; }
+      });
+    }
+
+    function showChangePw(uid) {
+      closeInlineForms();
+      var tbody = document.getElementById('usersBody');
+      var div = document.createElement('div');
+      div.className = 'inline-edit open';
+      div.id = 'inlinePw_' + uid;
+      div.innerHTML = '<input type="password" id="inlineCurPw_' + uid + '" placeholder="Current password" /><input type="password" id="inlineNewPw_' + uid + '" placeholder="New password (6+)" /><button class="btn-sm" onclick="doChangePw(' + uid + ')">Save</button><button class="btn-sm cancel" onclick="closeInlineForms()">Cancel</button><span class="msg-sm" id="inlinePwMsg_' + uid + '"></span>';
+      tbody.appendChild(div);
+    }
+
+    function doChangePw(uid) {
+      var curPw = document.getElementById('inlineCurPw_' + uid).value;
+      var newPw = document.getElementById('inlineNewPw_' + uid).value;
+      if (!curPw || !newPw) { document.getElementById('inlinePwMsg_' + uid).textContent = 'Fill in both fields'; document.getElementById('inlinePwMsg_' + uid).className = 'msg-sm error'; return; }
+      api('/password', { method: 'PUT', body: JSON.stringify({ currentPassword: curPw, newPassword: newPw }) }).then(function (d) {
+        var msg = document.getElementById('inlinePwMsg_' + uid);
+        if (d.message) { msg.textContent = '✓ Password changed!'; msg.className = 'msg-sm'; setTimeout(function () { closeInlineForms(); }, 1200); }
+        else { msg.textContent = d.error || 'Error'; msg.className = 'msg-sm error'; }
+      });
+    }
+
+    function closeInlineForms() {
+      document.querySelectorAll('.inline-edit.open').forEach(function (el) { el.remove(); });
+    }
+
+    // Update name (profile section)
     document.getElementById('updateNameBtn').addEventListener('click', function () {
       var name = document.getElementById('nameInput').value.trim();
       if (!name) return;
@@ -1390,7 +1457,7 @@ app.get('/settings', function (_req, res) {
       });
     });
 
-    // Change password
+    // Change password (profile section)
     document.getElementById('changePwBtn').addEventListener('click', function () {
       var currentPw = document.getElementById('currentPw').value;
       var newPw = document.getElementById('newPw').value;
