@@ -2,14 +2,13 @@
 -- Analytics Cloud Tenant — Database Schema
 -- Supports: SQLite (dev) / Azure SQL (production)
 -- ============================================================
-
 -- User accounts
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     display_name TEXT,
-    created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    created_at DATETIME NOT NULL DEFAULT (datetime ('now')),
     last_login DATETIME
 );
 

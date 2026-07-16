@@ -162,22 +162,7 @@ app.get('/login', (_req, res) => {
 });
 
 // ── Dashboard (served at /) ────────────────────────────────
-app.get('/', function (req, res) {
-  // Check for token in query param (for non-AJAX page loads)
-  var token = req.query.token || req.headers.authorization;
-  if (!token) {
-    return res.redirect('/login');
-  }
-  // Strip "Bearer " prefix if present
-  if (token.startsWith('Bearer ')) token = token.slice(7);
-
-  try {
-    var jwt = require('jsonwebtoken');
-    var { JWT_SECRET } = require('./middleware/jwt');
-    jwt.verify(token, JWT_SECRET);
-  } catch (e) {
-    return res.redirect('/login');
-  }
+app.get('/', function (_req, res) {
   res.send(`
 <!DOCTYPE html>
 <html lang="en">
