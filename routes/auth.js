@@ -155,4 +155,28 @@ router.put('/password', requireAuth, function (req, res) {
   }
 });
 
+/**
+ * GET /api/auth/users — List all registered users
+ */
+router.get('/users', requireAuth, function (req, res) {
+  try {
+    var db = getDb();
+    var users = db.prepare('SELECT id, email, display_name, created_at, last_login FROM users ORDER BY created_at DESC').all();
+    res.json({
+      users: users.map(function (u) {
+        return {
+          id: u.id,
+          email: u.email,
+          displayName: u.display_name,
+          createdAt: u.created_at,
+          lastLogin: u.last_login
+        };
+      })
+    });
+  } catch (err) {
+    console.error('List users error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

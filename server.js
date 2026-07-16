@@ -850,7 +850,7 @@ app.get('/settings', function (_req, res) {
     .sidebar .user-area .logout-btn { width: 100%; background: none; border: 1px solid #1e2430; border-radius: 6px; padding: 7px; color: #6b7a8f; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
     .sidebar .user-area .logout-btn:hover { border-color: #f43f5e; color: #f43f5e; }
 
-    .main { flex: 1; padding: 28px 32px; max-width: 700px; }
+    .main { flex: 1; padding: 28px 32px; max-width: 960px; }
     .main h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
     .main .sub { color: #4a5568; font-size: 0.85rem; margin-bottom: 28px; }
 
@@ -869,6 +869,15 @@ app.get('/settings', function (_req, res) {
     .card .msg { font-size: 0.78rem; margin-top: 8px; display: none; }
     .card .msg.success { color: #22c55e; display: block; }
     .card .msg.error { color: #f87171; display: block; }
+    .users-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .users-table th { text-align: left; padding: 8px 10px; color: #6b7a8f; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e2430; }
+    .users-table td { padding: 10px; border-bottom: 1px solid #141a24; color: #c9d1d9; }
+    .users-table tr:hover td { background: #141a24; }
+    .users-table .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 500; }
+    .users-table .badge.admin { background: #1e3a5f; color: #60a5fa; }
+    .users-table .badge.active { background: #14532d; color: #4ade80; }
+    .users-table .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #fff; font-weight: 700; }
+    .card .user-count { font-size: 0.82rem; color: #8b9bb5; margin-top: 8px; text-align: center; }
   </style>
 </head>
 <body>
@@ -876,6 +885,7 @@ app.get('/settings', function (_req, res) {
     <div class="logo-area"><div class="logo">T</div><div class="brand">Analytics <span>App</span></div></div>
     <div class="nav-items">
       <div class="nav-item" onclick="window.location.href='/'" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></div>
+      <div class="nav-item" onclick="window.location.href='/'"><span class="icon">📁</span><span>Reports</span></div>
       <div class="nav-item active"><span class="icon">⚙️</span><span>Settings</span></div>
     </div>
     <div class="user-area">
@@ -906,6 +916,21 @@ app.get('/settings', function (_req, res) {
         <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label"></span><button class="btn" id="changePwBtn">Change Password</button><span class="msg" id="pwMsg"></span></div>
       </div>
     </div>
+
+    <div class="section">
+      <h2>Users <span style="font-weight:400;color:#4a5568;font-size:0.78rem;">(registered accounts)</span></h2>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="users-table">
+          <thead>
+            <tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Last Login</th></tr>
+          </thead>
+          <tbody id="usersBody">
+            <tr><td colspan="6" style="text-align:center;color:#4a5568;padding:20px;">Loading...</td></tr>
+          </tbody>
+        </table>
+        <div class="user-count" id="userCount"></div>
+      </div>
+    </div>
   </div>
   <script>
     var token = localStorage.getItem('token');
@@ -919,9 +944,13 @@ app.get('/settings', function (_req, res) {
       return fetch('/api/auth' + endpoint, opts).then(function (r) { return r.json(); });
     }
 
+    // Current user info
+    var currentUserId = null;
+
     // Load profile
     api('/me').then(function (d) {
       if (d.user) {
+        currentUserId = d.user.id;
         document.getElementById('userName').textContent = d.user.displayName || d.user.email;
         document.getElementById('userEmail').textContent = d.user.email;
         document.getElementById('profileEmail').textContent = d.user.email;
@@ -929,6 +958,40 @@ app.get('/settings', function (_req, res) {
         document.getElementById('profileSince').textContent = d.user.createdAt || '-';
       }
     });
+
+    // Load all users
+    function loadUsers() {
+      api('/users').then(function (d) {
+        var tbody = document.getElementById('usersBody');
+        if (!d.users || d.users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#4a5568;padding:20px;">No users found</td></tr>';
+          return;
+        }
+        var html = '';
+        d.users.forEach(function (u) {
+          var initial = (u.displayName || u.email || '?')[0].toUpperCase();
+          var isMe = u.id === currentUserId;
+          var role = isMe ? '<span class="badge admin">Admin</span>' : '<span class="badge active">User</span>';
+          var status = '<span style="color:#4ade80;">&#9679;</span> Active';
+          var joined = u.createdAt ? u.createdAt.split('T')[0] : '-';
+          var lastLogin = u.lastLogin ? u.lastLogin.split('T')[0] : 'Never';
+          html += '<tr>';
+          html += '<td><div style="display:flex;align-items:center;gap:10px;"><div class="user-avatar">' + initial + '</div><span>' + (u.displayName || '(no name)') + '</span></div></td>';
+          html += '<td>' + u.email + '</td>';
+          html += '<td>' + role + '</td>';
+          html += '<td>' + status + '</td>';
+          html += '<td>' + joined + '</td>';
+          html += '<td>' + lastLogin + '</td>';
+          html += '</tr>';
+        });
+        tbody.innerHTML = html;
+        document.getElementById('userCount').textContent = d.users.length + ' user' + (d.users.length !== 1 ? 's' : '') + ' registered';
+      }).catch(function () {
+        document.getElementById('usersBody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f87171;padding:20px;">Failed to load users</td></tr>';
+      });
+    }
+
+    loadUsers();
 
     // Update name
     document.getElementById('updateNameBtn').addEventListener('click', function () {
