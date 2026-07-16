@@ -11,15 +11,38 @@ const router = Router();
 router.use(requireAuth);
 
 /**
- * GET /api/reports/top-sites?deviceId=xxx&days=7&limit=10
- *
- * Returns the most visited domains for a device (or all devices).
+ * Build a date WHERE clause and params for reports.
+ * Supports: from/to (date range) OR days (relative).
+ */
+function dateWhere(req) {
+  var from = req.query.from;
+  var to = req.query.to;
+  var days = parseInt(req.query.days, 10) || 7;
+  var clause, params;
+  if (from && to) {
+    clause = 'visit_date >= ? AND visit_date <= ?';
+    params = [from, to];
+  } else if (from) {
+    clause = 'visit_date >= ?';
+    params = [from];
+  } else if (to) {
+    clause = 'visit_date <= ?';
+    params = [to];
+  } else {
+    clause = "visit_date >= date('now', ? || ' days')";
+    params = ['-' + days];
+  }
+  return { clause: clause, params: params, days: days, from: from || null, to: to || null };
+}
+
+/**
+ * GET /api/reports/top-sites?deviceId=xxx&from=YYYY-MM-DD&to=YYYY-MM-DD&days=7&limit=10
  */
 router.get('/top-sites', (req, res) => {
   try {
     const deviceId = req.query.deviceId || null;
-    const days = parseInt(req.query.days, 10) || 7;
     const limit = parseInt(req.query.limit, 10) || 10;
+    const dw = dateWhere(req);
     const db = getDb();
 
     let rows;
@@ -31,12 +54,11 @@ router.get('/top-sites', (req, res) => {
           SUM(total_seconds) AS total_seconds,
           ROUND(AVG(total_seconds * 1.0 / NULLIF(total_visits, 0)), 1) AS avg_seconds_per_visit
         FROM daily_summary
-        WHERE device_id = ?
-          AND visit_date >= date('now', ? || ' days')
+        WHERE device_id = ? AND ${dw.clause}
         GROUP BY domain
         ORDER BY total_seconds DESC
         LIMIT ?
-      `).all(deviceId, `-${days}`, limit);
+      `).all(deviceId, ...dw.params, limit);
     } else {
       rows = db.prepare(`
         SELECT
@@ -45,14 +67,14 @@ router.get('/top-sites', (req, res) => {
           SUM(total_seconds) AS total_seconds,
           ROUND(AVG(total_seconds * 1.0 / NULLIF(total_visits, 0)), 1) AS avg_seconds_per_visit
         FROM daily_summary
-        WHERE visit_date >= date('now', ? || ' days')
+        WHERE ${dw.clause}
         GROUP BY domain
         ORDER BY total_seconds DESC
         LIMIT ?
-      `).all(`-${days}`, limit);
+      `).all(...dw.params, limit);
     }
 
-    res.json({ deviceId: deviceId || 'all', days, rows });
+    res.json({ deviceId: deviceId || 'all', days: dw.days, from: dw.from, to: dw.to, rows });
   } catch (err) {
     console.error('Error fetching top-sites report:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -60,14 +82,12 @@ router.get('/top-sites', (req, res) => {
 });
 
 /**
- * GET /api/reports/timeline?deviceId=xxx&days=7
- *
- * Returns total time per day for the given period (for charting).
+ * GET /api/reports/timeline?deviceId=xxx&from=YYYY-MM-DD&to=YYYY-MM-DD&days=7
  */
 router.get('/timeline', (req, res) => {
   try {
     const deviceId = req.query.deviceId || null;
-    const days = parseInt(req.query.days, 10) || 7;
+    const dw = dateWhere(req);
     const db = getDb();
 
     let rows;
@@ -78,11 +98,10 @@ router.get('/timeline', (req, res) => {
           SUM(total_visits)  AS visit_count,
           SUM(total_seconds) AS total_seconds
         FROM daily_summary
-        WHERE device_id = ?
-          AND visit_date >= date('now', ? || ' days')
+        WHERE device_id = ? AND ${dw.clause}
         GROUP BY visit_date
         ORDER BY visit_date ASC
-      `).all(deviceId, `-${days}`);
+      `).all(deviceId, ...dw.params);
     } else {
       rows = db.prepare(`
         SELECT
@@ -90,13 +109,13 @@ router.get('/timeline', (req, res) => {
           SUM(total_visits)  AS visit_count,
           SUM(total_seconds) AS total_seconds
         FROM daily_summary
-        WHERE visit_date >= date('now', ? || ' days')
+        WHERE ${dw.clause}
         GROUP BY visit_date
         ORDER BY visit_date ASC
-      `).all(`-${days}`);
+      `).all(...dw.params);
     }
 
-    res.json({ deviceId: deviceId || 'all', days, rows });
+    res.json({ deviceId: deviceId || 'all', days: dw.days, from: dw.from, to: dw.to, rows });
   } catch (err) {
     console.error('Error fetching timeline report:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -104,14 +123,16 @@ router.get('/timeline', (req, res) => {
 });
 
 /**
- * GET /api/reports/summary?deviceId=xxx
- *
- * Quick overall stats for a device.
+ * GET /api/reports/summary?deviceId=xxx&from=YYYY-MM-DD&to=YYYY-MM-DD
  */
 router.get('/summary', (req, res) => {
   try {
     const deviceId = req.query.deviceId || null;
+    const dw = dateWhere(req);
     const db = getDb();
+
+    // For summary we use site_visits, so adapt date clause
+    var dateClause = dw.clause.replace(/visit_date/g, 'date(visited_at)');
 
     let stats;
     if (deviceId) {
@@ -122,10 +143,9 @@ router.get('/summary', (req, res) => {
           COUNT(DISTINCT domain)            AS unique_domains,
           COUNT(DISTINCT date(visited_at))  AS active_days
         FROM site_visits
-        WHERE device_id = ?
-      `).get(deviceId);
+        WHERE device_id = ? AND ${dateClause}
+      `).get(deviceId, ...dw.params);
 
-      // Also get the device info
       const device = db.prepare('SELECT id, name, first_seen, last_seen FROM devices WHERE id = ?').get(deviceId);
       stats.device = device || null;
     } else {
@@ -137,10 +157,11 @@ router.get('/summary', (req, res) => {
           COUNT(DISTINCT device_id)         AS unique_devices,
           COUNT(DISTINCT date(visited_at))  AS active_days
         FROM site_visits
-      `).get();
+        WHERE ${dateClause}
+      `).get(...dw.params);
     }
 
-    res.json({ deviceId: deviceId || 'all', stats });
+    res.json({ deviceId: deviceId || 'all', days: dw.days, from: dw.from, to: dw.to, stats });
   } catch (err) {
     console.error('Error fetching summary report:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -149,8 +170,6 @@ router.get('/summary', (req, res) => {
 
 /**
  * GET /api/reports/devices
- *
- * List all registered devices.
  */
 router.get('/devices', (req, res) => {
   try {
@@ -169,14 +188,12 @@ router.get('/devices', (req, res) => {
 });
 
 /**
- * GET /api/reports/categories?deviceId=xxx&days=7
- *
- * Returns time spent grouped by site category.
+ * GET /api/reports/categories?deviceId=xxx&from=YYYY-MM-DD&to=YYYY-MM-DD&days=7
  */
 router.get('/categories', (req, res) => {
   try {
     const deviceId = req.query.deviceId || null;
-    const days = parseInt(req.query.days, 10) || 7;
+    const dw = dateWhere(req);
     const db = getDb();
 
     let rows;
@@ -184,24 +201,21 @@ router.get('/categories', (req, res) => {
       rows = db.prepare(`
         SELECT domain, SUM(total_seconds) AS total_seconds, SUM(total_visits) AS total_visits
         FROM daily_summary
-        WHERE device_id = ? AND visit_date >= date('now', ? || ' days')
+        WHERE device_id = ? AND ${dw.clause}
         GROUP BY domain
         ORDER BY total_seconds DESC
-      `).all(deviceId, `-${days}`);
+      `).all(deviceId, ...dw.params);
     } else {
       rows = db.prepare(`
         SELECT domain, SUM(total_seconds) AS total_seconds, SUM(total_visits) AS total_visits
         FROM daily_summary
-        WHERE visit_date >= date('now', ? || ' days')
+        WHERE ${dw.clause}
         GROUP BY domain
         ORDER BY total_seconds DESC
-      `).all(`-${days}`);
+      `).all(...dw.params);
     }
 
-    // Group by category
     var categories = {};
-    var otherSeconds = 0;
-
     rows.forEach(function (row) {
       var cat = categorizeDomain(row.domain);
       if (!categories[cat]) {
@@ -214,7 +228,7 @@ router.get('/categories', (req, res) => {
     var result = Object.keys(categories).map(function (k) { return categories[k]; });
     result.sort(function (a, b) { return b.total_seconds - a.total_seconds; });
 
-    res.json({ deviceId: deviceId || 'all', days: days, categories: result });
+    res.json({ deviceId: deviceId || 'all', days: dw.days, from: dw.from, to: dw.to, categories: result });
   } catch (err) {
     console.error('Error fetching categories:', err);
     res.status(500).json({ error: 'Internal server error' });

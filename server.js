@@ -467,7 +467,7 @@ app.get('/', function (_req, res) {
       </div>
       <div class="nav-items">
         <div class="nav-item active"><span class="icon">📊</span><span>Dashboard</span></div>
-        <div class="nav-item"><span class="icon">📁</span><span>Reports</span></div>
+        <div class="nav-item" onclick="window.location.href='/reports'"><span class="icon">📁</span><span>Reports</span></div>
         <div class="nav-item" onclick="window.location.href='/settings'"><span class="icon">⚙️</span><span>Settings</span></div>
       </div>
       <div class="user-area">
@@ -814,6 +814,275 @@ app.get('/', function (_req, res) {
   `);
 });
 
+// ── Reports page ───────────────────────────────────────────
+app.get('/reports', function (_req, res) {
+  res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports — Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 15px; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0b0e14; color: #e1e7ef; display: flex; min-height: 100vh;
+    }
+    .sidebar {
+      width: 220px; min-height: 100vh;
+      background: #0f131a; border-right: 1px solid #1e2430;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar .logo-area { padding: 20px 18px 16px; border-bottom: 1px solid #1e2430; display: flex; align-items: center; gap: 10px; }
+    .sidebar .logo-area .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; font-weight: 700; box-shadow: 0 3px 10px rgba(37,99,235,0.3); }
+    .sidebar .logo-area .brand { font-size: 0.95rem; font-weight: 700; color: #f0f3f8; }
+    .sidebar .logo-area .brand span { color: #4a5568; font-weight: 400; }
+    .sidebar .nav-items { flex: 1; padding: 12px 10px; }
+    .sidebar .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 0.82rem; color: #6b7a8f; cursor: pointer; transition: all 0.15s; margin-bottom: 2px; }
+    .sidebar .nav-item:hover { background: #161b22; color: #c9d1d9; }
+    .sidebar .nav-item.active { background: #1e293b; color: #f0f3f8; }
+    .sidebar .nav-item .icon { font-size: 1rem; width: 22px; text-align: center; }
+    .sidebar .user-area { padding: 14px 14px 18px; border-top: 1px solid #1e2430; }
+    .sidebar .user-area .user-name { font-size: 0.82rem; font-weight: 600; color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar .user-area .user-email { font-size: 0.72rem; color: #4a5568; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 10px; }
+    .sidebar .user-area .logout-btn { width: 100%; background: none; border: 1px solid #1e2430; border-radius: 6px; padding: 7px; color: #6b7a8f; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+    .sidebar .user-area .logout-btn:hover { border-color: #f43f5e; color: #f43f5e; }
+
+    .main { flex: 1; padding: 28px 32px; max-width: 1100px; }
+    .main h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    .main .sub { color: #4a5568; font-size: 0.85rem; margin-bottom: 24px; }
+
+    .filter-bar { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; background: #111820; border: 1px solid #1e2430; border-radius: 10px; padding: 16px 20px; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-group label { font-size: 0.72rem; color: #6b7a8f; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-group select, .filter-group input { background: #0b0e14; border: 1px solid #1e2430; border-radius: 6px; padding: 8px 10px; color: #e1e7ef; font-size: 0.85rem; font-family: inherit; outline: none; min-width: 150px; }
+    .filter-group select:focus, .filter-group input:focus { border-color: #2563eb; }
+    .filter-bar .gen-btn { background: #2563eb; border: none; border-radius: 6px; padding: 8px 20px; color: #fff; font-size: 0.85rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .filter-bar .gen-btn:hover { background: #1d4ed8; }
+
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: #111820; border: 1px solid #1e2430; border-radius: 10px; padding: 16px; text-align: center; }
+    .stat-card .stat-icon { font-size: 1.3rem; margin-bottom: 6px; }
+    .stat-card .stat-value { font-size: 1.2rem; font-weight: 700; color: #f0f3f8; }
+    .stat-card .stat-label { font-size: 0.75rem; color: #4a5568; margin-top: 2px; }
+
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 800px) { .charts-row { grid-template-columns: 1fr; } }
+    .chart-card { background: #111820; border: 1px solid #1e2430; border-radius: 10px; padding: 18px; }
+    .chart-card h3 { font-size: 0.9rem; color: #f0f3f8; margin-bottom: 12px; font-weight: 600; }
+    .chart-card .chart-container { position: relative; height: 220px; }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .data-table th { text-align: left; padding: 8px 10px; color: #6b7a8f; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e2430; }
+    .data-table td { padding: 10px; border-bottom: 1px solid #141a24; color: #c9d1d9; }
+    .data-table tr:hover td { background: #141a24; }
+    .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .loading-msg { text-align: center; color: #4a5568; padding: 40px; font-size: 0.9rem; }
+    .empty-msg { text-align: center; color: #4a5568; padding: 30px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo-area"><div class="logo">T</div><div class="brand">Analytics <span>App</span></div></div>
+    <div class="nav-items">
+      <div class="nav-item" onclick="window.location.href='/'"><span class="icon">📊</span><span>Dashboard</span></div>
+      <div class="nav-item active"><span class="icon">📁</span><span>Reports</span></div>
+      <div class="nav-item" onclick="window.location.href='/settings'"><span class="icon">⚙️</span><span>Settings</span></div>
+    </div>
+    <div class="user-area">
+      <div class="user-name" id="userName">Loading...</div>
+      <div class="user-email" id="userEmail"></div>
+      <button class="logout-btn" onclick="localStorage.removeItem('token');localStorage.removeItem('user');window.location.href='/login'">🚪 Sign Out</button>
+    </div>
+  </div>
+  <div class="main">
+    <h1>Reports</h1>
+    <div class="sub">Filter analytics by device and date range</div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>Device</label>
+        <select id="deviceSelect"><option value="">All Devices</option></select>
+      </div>
+      <div class="filter-group">
+        <label>From</label>
+        <input type="date" id="fromDate" />
+      </div>
+      <div class="filter-group">
+        <label>To</label>
+        <input type="date" id="toDate" />
+      </div>
+      <div class="filter-group" style="justify-content:flex-end;">
+        <button class="gen-btn" id="generateBtn">⟳ Generate Report</button>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="report-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-icon">⏱</div><div class="stat-value">-</div><div class="stat-label">Time Online</div></div>
+      <div class="stat-card"><div class="stat-icon">📄</div><div class="stat-value">-</div><div class="stat-label">Visits</div></div>
+      <div class="stat-card"><div class="stat-icon">🌐</div><div class="stat-value">-</div><div class="stat-label">Sites</div></div>
+      <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value">-</div><div class="stat-label">Active Days</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-card"><h3>Top Sites</h3><div class="chart-container"><canvas id="topSitesChart"></canvas></div></div>
+      <div class="chart-card"><h3>Daily Activity</h3><div class="chart-container"><canvas id="timelineChart"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card"><h3>Site Categories</h3><div class="chart-container"><canvas id="categoriesChart"></canvas></div></div>
+      <div class="chart-card"><h3>Top Sites (Table)</h3>
+        <div style="max-height:220px;overflow-y:auto;">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Domain</th><th class="num">Visits</th><th class="num">Time</th><th class="num">Avg/Visit</th></tr></thead>
+            <tbody id="topSitesBody"><tr><td colspan="5" class="empty-msg">No data</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    var token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/login'; }
+
+    var charts = {};
+
+    function api(path) {
+      return fetch(path, { headers: { 'Authorization': 'Bearer ' + token } }).then(function (r) { return r.json(); });
+    }
+
+    function fmtTime(s) {
+      if (!s || s === 0) return '0m';
+      var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      return (h ? h + 'h ' : '') + m + 'm';
+    }
+
+    function destroyChart(key) { if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
+
+    function loadReport() {
+      var deviceId = document.getElementById('deviceSelect').value;
+      var from = document.getElementById('fromDate').value;
+      var to = document.getElementById('toDate').value;
+      var params = '';
+      if (deviceId) params += '&deviceId=' + deviceId;
+      if (from) params += '&from=' + from;
+      if (to) params += '&to=' + to;
+      var base = '/api/reports';
+
+      // Summary
+      api(base + '/summary?' + params.substring(1)).then(function (d) {
+        if (d.stats) {
+          document.querySelector('#statsGrid .stat-card:nth-child(1) .stat-value').textContent = fmtTime(d.stats.total_seconds);
+          document.querySelector('#statsGrid .stat-card:nth-child(2) .stat-value').textContent = d.stats.total_visits || 0;
+          document.querySelector('#statsGrid .stat-card:nth-child(3) .stat-value').textContent = d.stats.unique_domains || 0;
+          document.querySelector('#statsGrid .stat-card:nth-child(4) .stat-value').textContent = d.stats.active_days || 0;
+        }
+      });
+
+      // Top Sites (chart + table)
+      api(base + '/top-sites?limit=10' + params).then(function (d) {
+        destroyChart('topSites');
+        var tbody = document.getElementById('topSitesBody');
+        if (!d.rows || d.rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No data</td></tr>';
+          return;
+        }
+        var labels = [], data = [], colors = [];
+        var html = '';
+        d.rows.forEach(function (r, i) {
+          labels.push(r.domain);
+          data.push(Math.round(r.total_seconds / 60));
+          colors.push('hsl(' + (i * 35) + ', 60%, 50%)');
+          html += '<tr><td>' + (i+1) + '</td><td>' + r.domain + '</td><td class="num">' + r.visit_count + '</td><td class="num">' + fmtTime(r.total_seconds) + '</td><td class="num">' + (r.avg_seconds_per_visit || 0) + 's</td></tr>';
+        });
+        tbody.innerHTML = html;
+        var ctx = document.getElementById('topSitesChart').getContext('2d');
+        charts.topSites = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: labels, datasets: [{ label: 'Minutes', data: data, backgroundColor: colors, borderRadius: 4 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { x: { ticks: { color: '#6b7a8f', font: { size: 10 } } }, y: { ticks: { color: '#6b7a8f' }, grid: { color: '#1e2430' } } } }
+        });
+      });
+
+      // Timeline
+      api(base + '/timeline' + params).then(function (d) {
+        destroyChart('timeline');
+        if (!d.rows || d.rows.length === 0) return;
+        var labels = [], data = [];
+        d.rows.forEach(function (r) { labels.push(r.visit_date); data.push(Math.round(r.total_seconds / 60)); });
+        var ctx = document.getElementById('timelineChart').getContext('2d');
+        charts.timeline = new Chart(ctx, {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: 'Minutes', data: data, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.3, pointRadius: 3 }] },
+          options: { responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: { color: '#6b7a8f', font: { size: 10 } } }, y: { ticks: { color: '#6b7a8f' }, grid: { color: '#1e2430' } } } }
+        });
+      });
+
+      // Categories
+      api(base + '/categories' + params).then(function (d) {
+        destroyChart('categories');
+        if (!d.categories || d.categories.length === 0) return;
+        var labels = [], data = [], colors = [];
+        d.categories.forEach(function (c) { labels.push(c.category); data.push(Math.round(c.total_seconds / 60)); colors.push(c.color || '#4a5568'); });
+        var ctx = document.getElementById('categoriesChart').getContext('2d');
+        charts.categories = new Chart(ctx, {
+          type: 'doughnut',
+          data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderColor: '#111820', borderWidth: 2 }] },
+          options: { responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color: '#8b9bb5', font: { size: 10 }, boxWidth: 12 } } } }
+        });
+      });
+    }
+
+    // Load devices for filter
+    api('/api/reports/devices').then(function (d) {
+      var sel = document.getElementById('deviceSelect');
+      if (d.devices) {
+        d.devices.forEach(function (dev) {
+          var opt = document.createElement('option');
+          opt.value = dev.id;
+          opt.textContent = dev.name || dev.id;
+          sel.appendChild(opt);
+        });
+      }
+    });
+
+    // Set default date range (last 7 days)
+    (function () {
+      var today = new Date();
+      var sevenAgo = new Date(today);
+      sevenAgo.setDate(sevenAgo.getDate() - 7);
+      document.getElementById('fromDate').value = sevenAgo.toISOString().split('T')[0];
+      document.getElementById('toDate').value = today.toISOString().split('T')[0];
+    })();
+
+    document.getElementById('generateBtn').addEventListener('click', loadReport);
+
+    // Load user info
+    api('/api/auth/me').then(function (d) {
+      if (d.user) {
+        document.getElementById('userName').textContent = d.user.displayName || d.user.email;
+        document.getElementById('userEmail').textContent = d.user.email;
+      }
+    });
+
+    // Auto-load on page load
+    loadReport();
+  </script>
+</body>
+</html>
+  `);
+});
+
 // ── Settings page ──────────────────────────────────────────
 app.get('/settings', function (_req, res) {
   res.send(`
@@ -826,6 +1095,7 @@ app.get('/settings', function (_req, res) {
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 15px; }
     body {
       font-family: 'Inter', sans-serif;
       background: #0b0e14; color: #e1e7ef; display: flex; min-height: 100vh;
@@ -869,6 +1139,9 @@ app.get('/settings', function (_req, res) {
     .card .msg { font-size: 0.78rem; margin-top: 8px; display: none; }
     .card .msg.success { color: #22c55e; display: block; }
     .card .msg.error { color: #f87171; display: block; }
+    .date-range { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .date-range input[type="date"] { background: #0b0e14; border: 1px solid #1e2430; border-radius: 6px; padding: 8px 10px; color: #e1e7ef; font-size: 0.82rem; font-family: inherit; outline: none; }
+    .date-range input[type="date"]:focus { border-color: #2563eb; }
     .users-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .users-table th { text-align: left; padding: 8px 10px; color: #6b7a8f; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e2430; }
     .users-table td { padding: 10px; border-bottom: 1px solid #141a24; color: #c9d1d9; }
