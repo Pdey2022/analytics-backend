@@ -1,11 +1,11 @@
 // ============================================================
-// POST /api/auth/* — User registration and login
+// /api/auth/* — User registration, login, profile
 // ============================================================
 var { Router } = require('express');
 var bcrypt = require('bcryptjs');
 var jwt = require('jsonwebtoken');
 var { getDb } = require('../db/connection');
-var { JWT_SECRET } = require('../middleware/jwt');
+var { JWT_SECRET, requireAuth } = require('../middleware/jwt');
 
 var router = Router();
 
@@ -94,6 +94,63 @@ router.post('/login', function (req, res) {
     });
   } catch (err) {
     console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/auth/me — Get current user profile
+ */
+router.get('/me', requireAuth, function (req, res) {
+  try {
+    var db = getDb();
+    var user = db.prepare('SELECT id, email, display_name, created_at, last_login FROM users WHERE id = ?').get(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ user: { id: user.id, email: user.email, displayName: user.display_name, createdAt: user.created_at, lastLogin: user.last_login } });
+  } catch (err) {
+    console.error('Profile error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * PUT /api/auth/profile — Update display name
+ * Body: { displayName }
+ */
+router.put('/profile', requireAuth, function (req, res) {
+  try {
+    var { displayName } = req.body;
+    var db = getDb();
+    db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(displayName || null, req.user.id);
+    res.json({ message: 'Profile updated', displayName: displayName || null });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * PUT /api/auth/password — Change password
+ * Body: { currentPassword, newPassword }
+ */
+router.put('/password', requireAuth, function (req, res) {
+  try {
+    var { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+    var db = getDb();
+    var user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    var valid = bcrypt.compareSync(currentPassword, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    var hash = bcrypt.hashSync(newPassword, 10);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.user.id);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Password change error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

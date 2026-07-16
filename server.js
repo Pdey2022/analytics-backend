@@ -468,7 +468,7 @@ app.get('/', function (_req, res) {
       <div class="nav-items">
         <div class="nav-item active"><span class="icon">📊</span><span>Dashboard</span></div>
         <div class="nav-item"><span class="icon">📁</span><span>Reports</span></div>
-        <div class="nav-item"><span class="icon">⚙️</span><span>Settings</span></div>
+        <div class="nav-item" onclick="window.location.href='/settings'"><span class="icon">⚙️</span><span>Settings</span></div>
       </div>
       <div class="user-area">
         <div class="user-name" id="userName">Loading...</div>
@@ -808,6 +808,154 @@ app.get('/', function (_req, res) {
 
     loadDashboard();
     setInterval(loadDashboard, 30000);
+  </script>
+</body>
+</html>
+  `);
+});
+
+// ── Settings page ──────────────────────────────────────────
+app.get('/settings', function (_req, res) {
+  res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0b0e14; color: #e1e7ef; display: flex; min-height: 100vh;
+    }
+    .sidebar {
+      width: 220px; min-height: 100vh;
+      background: #0f131a; border-right: 1px solid #1e2430;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar .logo-area { padding: 20px 18px 16px; border-bottom: 1px solid #1e2430; display: flex; align-items: center; gap: 10px; }
+    .sidebar .logo-area .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; font-weight: 700; box-shadow: 0 3px 10px rgba(37,99,235,0.3); }
+    .sidebar .logo-area .brand { font-size: 0.95rem; font-weight: 700; color: #f0f3f8; }
+    .sidebar .logo-area .brand span { color: #4a5568; font-weight: 400; }
+    .sidebar .nav-items { flex: 1; padding: 12px 10px; }
+    .sidebar .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 0.82rem; color: #6b7a8f; cursor: pointer; transition: all 0.15s; margin-bottom: 2px; }
+    .sidebar .nav-item:hover { background: #161b22; color: #c9d1d9; }
+    .sidebar .nav-item.active { background: #1e293b; color: #f0f3f8; }
+    .sidebar .nav-item .icon { font-size: 1rem; width: 22px; text-align: center; }
+    .sidebar .user-area { padding: 14px 14px 18px; border-top: 1px solid #1e2430; }
+    .sidebar .user-area .user-name { font-size: 0.82rem; font-weight: 600; color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar .user-area .user-email { font-size: 0.72rem; color: #4a5568; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 10px; }
+    .sidebar .user-area .logout-btn { width: 100%; background: none; border: 1px solid #1e2430; border-radius: 6px; padding: 7px; color: #6b7a8f; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+    .sidebar .user-area .logout-btn:hover { border-color: #f43f5e; color: #f43f5e; }
+
+    .main { flex: 1; padding: 28px 32px; max-width: 700px; }
+    .main h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    .main .sub { color: #4a5568; font-size: 0.85rem; margin-bottom: 28px; }
+
+    .section { margin-bottom: 28px; }
+    .section h2 { font-size: 0.9rem; color: #f0f3f8; margin-bottom: 14px; font-weight: 600; }
+    .card { background: #111820; border: 1px solid #1e2430; border-radius: 10px; padding: 20px; }
+    .card .row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #141a24; }
+    .card .row:last-child { border-bottom: none; }
+    .card .row .label { font-size: 0.82rem; color: #8b9bb5; }
+    .card .row .value { font-size: 0.85rem; color: #e1e7ef; font-weight: 500; }
+    .card input { background: #0b0e14; border: 1px solid #1e2430; border-radius: 6px; padding: 8px 10px; color: #e1e7ef; font-size: 0.85rem; font-family: inherit; outline: none; width: 200px; }
+    .card input:focus { border-color: #2563eb; }
+    .card .btn { background: #2563eb; border: none; border-radius: 6px; padding: 7px 16px; color: #fff; font-size: 0.8rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .card .btn:hover { background: #1d4ed8; }
+    .card .btn:disabled { opacity: 0.5; cursor: default; }
+    .card .msg { font-size: 0.78rem; margin-top: 8px; display: none; }
+    .card .msg.success { color: #22c55e; display: block; }
+    .card .msg.error { color: #f87171; display: block; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo-area"><div class="logo">T</div><div class="brand">Analytics <span>App</span></div></div>
+    <div class="nav-items">
+      <div class="nav-item" onclick="window.location.href='/'" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></div>
+      <div class="nav-item active"><span class="icon">⚙️</span><span>Settings</span></div>
+    </div>
+    <div class="user-area">
+      <div class="user-name" id="userName">Loading...</div>
+      <div class="user-email" id="userEmail"></div>
+      <button class="logout-btn" onclick="localStorage.removeItem('token');localStorage.removeItem('user');window.location.href='/login'">🚪 Sign Out</button>
+    </div>
+  </div>
+  <div class="main">
+    <h1>Settings</h1>
+    <div class="sub">Manage your account</div>
+
+    <div class="section">
+      <h2>Profile</h2>
+      <div class="card">
+        <div class="row"><span class="label">Email</span><span class="value" id="profileEmail">-</span></div>
+        <div class="row"><span class="label">Display Name</span><span class="value" id="profileName">-</span></div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label">Change Name</span><input type="text" id="nameInput" placeholder="New display name" /><button class="btn" id="updateNameBtn">Update</button><span class="msg" id="nameMsg"></span></div>
+        <div class="row"><span class="label">Member Since</span><span class="value" id="profileSince">-</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Password</h2>
+      <div class="card">
+        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label">Current</span><input type="password" id="currentPw" placeholder="Current password" /></div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label">New</span><input type="password" id="newPw" placeholder="New password (6+ chars)" /></div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label"></span><button class="btn" id="changePwBtn">Change Password</button><span class="msg" id="pwMsg"></span></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    var token = localStorage.getItem('token');
+    if (!token) { window.location.href = '/login'; }
+
+    function api(endpoint, opts) {
+      opts = opts || {};
+      opts.headers = opts.headers || {};
+      opts.headers['Content-Type'] = 'application/json';
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      return fetch('/api/auth' + endpoint, opts).then(function (r) { return r.json(); });
+    }
+
+    // Load profile
+    api('/me').then(function (d) {
+      if (d.user) {
+        document.getElementById('userName').textContent = d.user.displayName || d.user.email;
+        document.getElementById('userEmail').textContent = d.user.email;
+        document.getElementById('profileEmail').textContent = d.user.email;
+        document.getElementById('profileName').textContent = d.user.displayName || '(not set)';
+        document.getElementById('profileSince').textContent = d.user.createdAt || '-';
+      }
+    });
+
+    // Update name
+    document.getElementById('updateNameBtn').addEventListener('click', function () {
+      var name = document.getElementById('nameInput').value.trim();
+      if (!name) return;
+      var btn = this; btn.disabled = true;
+      api('/profile', { method: 'PUT', body: JSON.stringify({ displayName: name }) }).then(function (d) {
+        var msg = document.getElementById('nameMsg');
+        if (d.message) { msg.className = 'msg success'; msg.textContent = 'Name updated!'; location.reload(); }
+        else { msg.className = 'msg error'; msg.textContent = d.error || 'Error'; }
+        btn.disabled = false;
+      });
+    });
+
+    // Change password
+    document.getElementById('changePwBtn').addEventListener('click', function () {
+      var currentPw = document.getElementById('currentPw').value;
+      var newPw = document.getElementById('newPw').value;
+      if (!currentPw || !newPw) { document.getElementById('pwMsg').className = 'msg error'; document.getElementById('pwMsg').textContent = 'Fill in both fields'; return; }
+      var btn = this; btn.disabled = true;
+      api('/password', { method: 'PUT', body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }) }).then(function (d) {
+        var msg = document.getElementById('pwMsg');
+        if (d.message) { msg.className = 'msg success'; msg.textContent = 'Password changed!'; document.getElementById('currentPw').value = ''; document.getElementById('newPw').value = ''; }
+        else { msg.className = 'msg error'; msg.textContent = d.error || 'Error'; }
+        btn.disabled = false;
+      });
+    });
   </script>
 </body>
 </html>
