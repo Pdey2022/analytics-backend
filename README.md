@@ -2,6 +2,9 @@
 
 A browser extension + cloud backend for tracking time spent on websites. Includes a full analytics dashboard with per-device filtering, site categorization, user authentication, and date-range reporting.
 
+<img width="2511" height="1857" alt="image" src="https://github.com/user-attachments/assets/6418411e-e933-490e-bd22-a4924b1ccdff" />
+
+
 ## Features
 
 - ⏱ **Automatic time tracking** — Chrome extension tracks active tabs, detects idle time, and batches data
