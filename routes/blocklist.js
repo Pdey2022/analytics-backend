@@ -38,8 +38,8 @@ router.post('/', (req, res) => {
     if (!domain) {
       return res.status(400).json({ error: 'Domain is required' });
     }
-    // Remove protocol and path if someone pastes a full URL
-    domain = domain.replace(/^https?:\/\//, '').split('/')[0].split('?')[0];
+    // Remove protocol and path if someone pastes a full URL, strip www.
+    domain = domain.replace(/^https?:\/\//, '').split('/')[0].split('?')[0].replace(/^www\./, '');
 
     const db = getDb();
     var result = db.prepare('INSERT OR IGNORE INTO blocked_domains (domain, added_by) VALUES (?, ?)')
