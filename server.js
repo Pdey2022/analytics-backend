@@ -1014,7 +1014,7 @@ app.get('/reports', function (_req, res) {
       });
 
       // Timeline
-      api(base + '/timeline' + params).then(function (d) {
+      api(base + '/timeline?' + params.substring(1)).then(function (d) {
         destroyChart('timeline');
         if (!d.rows || d.rows.length === 0) return;
         var labels = [], data = [];
@@ -1030,7 +1030,7 @@ app.get('/reports', function (_req, res) {
       });
 
       // Categories
-      api(base + '/categories' + params).then(function (d) {
+      api(base + '/categories?' + params.substring(1)).then(function (d) {
         destroyChart('categories');
         if (!d.categories || d.categories.length === 0) return;
         var labels = [], data = [], colors = [];
