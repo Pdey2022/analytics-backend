@@ -180,7 +180,27 @@ router.get('/devices', (req, res) => {
       ORDER BY last_seen DESC
     `).all();
 
-    res.json({ devices });
+    // Compute dynamic active status based on last_seen within 15 minutes
+    var now = new Date();
+    var computed = devices.map(function (d) {
+      var active = d.is_active ? 1 : 0;
+      if (d.last_seen) {
+        var lastSeen = new Date(d.last_seen + 'Z');
+        var diffMs = now - lastSeen;
+        if (diffMs > 15 * 60 * 1000) {
+          active = 0;
+        }
+      }
+      return {
+        id: d.id,
+        name: d.name,
+        first_seen: d.first_seen,
+        last_seen: d.last_seen,
+        is_active: active
+      };
+    });
+
+    res.json({ devices: computed });
   } catch (err) {
     console.error('Error listing devices:', err);
     res.status(500).json({ error: 'Internal server error' });

@@ -764,6 +764,11 @@ app.get('/', function (_req, res) {
           var html = '';
           devices.forEach(function (d) {
             var st = d.is_active ? '<span class="status-active"><span class="status-dot" style="background:#22c55e;"></span>Active</span>' : '<span class="status-inactive"><span class="status-dot" style="background:#4a5568;"></span>Inactive</span>';
+            var lastSeenLabel = d.last_seen || '';
+            // If inactive, append a note showing last data time
+            if (!d.is_active && d.last_seen) {
+              st = '<span class="status-inactive"><span class="status-dot" style="background:#f59e0b;"></span>Inactive</span><div style="font-size:0.7rem;color:#6b7a8f;margin-top:2px;">Last data: ' + d.last_seen + '</div>';
+            }
             var nm = d.name || '<span class="mono">' + (d.id || '').slice(0, 8) + '...</span>';
             var ac = d.id === selectedDeviceId ? ' class="active-row"' : '';
             html += '<tr' + ac + '><td><a class="device-link" data-did="' + d.id + '" href="#">' + nm + '</a></td><td style="color:#6b7a8f;">' + (d.first_seen || '') + '</td><td style="color:#6b7a8f;">' + (d.last_seen || '') + '</td><td>' + st + '</td><td><a class="report-link" href="/reports?deviceId=' + d.id + '" title="View report for ' + (d.name || d.id) + '">📊</a></td></tr>';
