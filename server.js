@@ -410,6 +410,8 @@ app.get('/', function (_req, res) {
     .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
     .status-active { color: #22c55e; }
     .status-inactive { color: #4a5568; }
+    .report-link { text-decoration: none; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #1e293b; transition: all 0.15s; }
+    .report-link:hover { background: #2563eb; transform: scale(1.1); }
 
     /* ── API section ───────────────────── */
     .api-card {
@@ -561,8 +563,8 @@ app.get('/', function (_req, res) {
       </div>
       <div class="table-wrap" id="devicesTableWrap">
         <table id="devicesTable">
-          <thead><tr><th>Device</th><th>First Seen</th><th>Last Seen</th><th>Status</th></tr></thead>
-          <tbody id="devicesBody"><tr><td colspan="4" style="text-align:center;color:#4a5568;padding:24px;">Loading...</td></tr></tbody>
+          <thead><tr><th>Device</th><th>First Seen</th><th>Last Seen</th><th>Status</th><th style="width:60px;">Report</th></tr></thead>
+          <tbody id="devicesBody"><tr><td colspan="5" style="text-align:center;color:#4a5568;padding:24px;">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -757,14 +759,14 @@ app.get('/', function (_req, res) {
         // Devices table
         var tbody = document.getElementById('devicesBody');
         if (devices.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#4a5568;padding:24px;">No devices registered yet.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#4a5568;padding:24px;">No devices registered yet.</td></tr>';
         } else {
           var html = '';
           devices.forEach(function (d) {
             var st = d.is_active ? '<span class="status-active"><span class="status-dot" style="background:#22c55e;"></span>Active</span>' : '<span class="status-inactive"><span class="status-dot" style="background:#4a5568;"></span>Inactive</span>';
             var nm = d.name || '<span class="mono">' + (d.id || '').slice(0, 8) + '...</span>';
             var ac = d.id === selectedDeviceId ? ' class="active-row"' : '';
-            html += '<tr' + ac + '><td><a class="device-link" data-did="' + d.id + '" href="#">' + nm + '</a></td><td style="color:#6b7a8f;">' + (d.first_seen || '') + '</td><td style="color:#6b7a8f;">' + (d.last_seen || '') + '</td><td>' + st + '</td></tr>';
+            html += '<tr' + ac + '><td><a class="device-link" data-did="' + d.id + '" href="#">' + nm + '</a></td><td style="color:#6b7a8f;">' + (d.first_seen || '') + '</td><td style="color:#6b7a8f;">' + (d.last_seen || '') + '</td><td>' + st + '</td><td><a class="report-link" href="/reports?deviceId=' + d.id + '" title="View report for ' + (d.name || d.id) + '">📊</a></td></tr>';
           });
           tbody.innerHTML = html;
           tbody.querySelectorAll('.device-link').forEach(function (el) {
@@ -1043,18 +1045,9 @@ app.get('/reports', function (_req, res) {
       });
     }
 
-    // Load devices for filter
-    api('/api/reports/devices').then(function (d) {
-      var sel = document.getElementById('deviceSelect');
-      if (d.devices) {
-        d.devices.forEach(function (dev) {
-          var opt = document.createElement('option');
-          opt.value = dev.id;
-          opt.textContent = dev.name || dev.id;
-          sel.appendChild(opt);
-        });
-      }
-    });
+    // Parse URL query params
+    var urlParams = new URLSearchParams(window.location.search);
+    var urlDeviceId = urlParams.get('deviceId') || '';
 
     // Set default date range (last 7 days)
     (function () {
@@ -1075,8 +1068,21 @@ app.get('/reports', function (_req, res) {
       }
     });
 
-    // Auto-load on page load
-    loadReport();
+    // Load devices for filter, then auto-select from URL and auto-load
+    api('/api/reports/devices').then(function (d) {
+      var sel = document.getElementById('deviceSelect');
+      if (d.devices) {
+        d.devices.forEach(function (dev) {
+          var opt = document.createElement('option');
+          opt.value = dev.id;
+          opt.textContent = dev.name || dev.id;
+          if (dev.id === urlDeviceId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      }
+      // Auto-load report after devices are ready
+      loadReport();
+    });
   </script>
 </body>
 </html>
