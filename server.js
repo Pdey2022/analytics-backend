@@ -1295,21 +1295,11 @@ app.get('/settings', function (_req, res) {
     <div class="sub">Manage your account</div>
 
     <div class="section">
-      <h2>Profile</h2>
+      <h2>Account Info</h2>
       <div class="card">
         <div class="row"><span class="label">Email</span><span class="value" id="profileEmail">-</span></div>
         <div class="row"><span class="label">Display Name</span><span class="value" id="profileName">-</span></div>
-        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label">Change Name</span><input type="text" id="nameInput" placeholder="New display name" /><button class="btn" id="updateNameBtn">Update</button><span class="msg" id="nameMsg"></span></div>
         <div class="row"><span class="label">Member Since</span><span class="value" id="profileSince">-</span></div>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>Password</h2>
-      <div class="card">
-        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label">Current</span><input type="password" id="currentPw" placeholder="Current password" /></div>
-        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label">New</span><input type="password" id="newPw" placeholder="New password (6+ chars)" /></div>
-        <div class="row" style="gap:10px;flex-wrap:wrap;"><span class="label"></span><button class="btn" id="changePwBtn">Change Password</button><span class="msg" id="pwMsg"></span></div>
       </div>
     </div>
 
@@ -1444,32 +1434,7 @@ app.get('/settings', function (_req, res) {
       document.querySelectorAll('.inline-edit.open').forEach(function (el) { el.remove(); });
     }
 
-    // Update name (profile section)
-    document.getElementById('updateNameBtn').addEventListener('click', function () {
-      var name = document.getElementById('nameInput').value.trim();
-      if (!name) return;
-      var btn = this; btn.disabled = true;
-      api('/profile', { method: 'PUT', body: JSON.stringify({ displayName: name }) }).then(function (d) {
-        var msg = document.getElementById('nameMsg');
-        if (d.message) { msg.className = 'msg success'; msg.textContent = 'Name updated!'; location.reload(); }
-        else { msg.className = 'msg error'; msg.textContent = d.error || 'Error'; }
-        btn.disabled = false;
-      });
-    });
-
-    // Change password (profile section)
-    document.getElementById('changePwBtn').addEventListener('click', function () {
-      var currentPw = document.getElementById('currentPw').value;
-      var newPw = document.getElementById('newPw').value;
-      if (!currentPw || !newPw) { document.getElementById('pwMsg').className = 'msg error'; document.getElementById('pwMsg').textContent = 'Fill in both fields'; return; }
-      var btn = this; btn.disabled = true;
-      api('/password', { method: 'PUT', body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }) }).then(function (d) {
-        var msg = document.getElementById('pwMsg');
-        if (d.message) { msg.className = 'msg success'; msg.textContent = 'Password changed!'; document.getElementById('currentPw').value = ''; document.getElementById('newPw').value = ''; }
-        else { msg.className = 'msg error'; msg.textContent = d.error || 'Error'; }
-        btn.disabled = false;
-      });
-    });
+    // (Profile name and password editing moved to inline Actions in Users table below)
   </script>
 </body>
 </html>
