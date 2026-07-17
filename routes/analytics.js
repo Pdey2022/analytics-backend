@@ -57,12 +57,6 @@ router.post('/', (req, res) => {
           is_active = 1
       `).run(deviceId, config.apiKey);
     }
-    // Load blocked domains - normalize by stripping www. prefix
-    var blockedRows = db.prepare('SELECT domain FROM blocked_domains').all();
-    var blockedSet = new Set(blockedRows.map(function (r) {
-      return r.domain.replace(/^www\./, '');
-    }));
-
     // Prepare statements for batch insert
     const insertVisit = db.prepare(`
       INSERT INTO site_visits (device_id, domain, page_title, time_spent_seconds, visited_at)
@@ -85,14 +79,6 @@ router.post('/', (req, res) => {
           continue;
         }
         if (v.timeSpentSeconds < config.minTimeSpentSeconds) {
-          results.skipped++;
-          continue;
-        }
-
-        // Check blocklist - normalize both sides (strip www.)
-        var domainKey = v.domain.replace(/^https?:\/\//, '').split('/')[0].split('?')[0].toLowerCase().replace(/^www\./, '');
-        if (blockedSet.has(domainKey)) {
-          console.log('[Blocklist] Skipped ' + v.domain + ' (matched ' + domainKey + ')');
           results.skipped++;
           continue;
         }

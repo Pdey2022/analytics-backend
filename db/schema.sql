@@ -52,11 +52,3 @@ CREATE INDEX IF NOT EXISTS idx_visits_domain ON site_visits (domain);
 CREATE INDEX IF NOT EXISTS idx_visits_date ON site_visits (visited_at);
 
 CREATE INDEX IF NOT EXISTS idx_summary_device ON daily_summary (device_id, visit_date);
-
--- Blocked domains (blocklist management)
-CREATE TABLE IF NOT EXISTS blocked_domains (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    domain TEXT UNIQUE NOT NULL,
-    added_by INTEGER REFERENCES users (id),
-    created_at DATETIME NOT NULL DEFAULT (datetime ('now'))
-);
